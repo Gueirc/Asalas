@@ -35,4 +35,9 @@ struct sala{
 void sala_gerar(sala **inicial, sala *anterior, int ehErrada);
 sala* sala_gerar_certos(sala*,const int*,int);
 int salas_percorrer(sala *atual, sala *anterior, sala *ultimaSala);
+int salas_percorrer_voltar(sala *atual, sala *salaEscolhida);
+void salas_percorrer_printar_tras();
+void salas_percorrer_printar_meio();
+void salas_percorrer_printar_esquerda();
+void salas_percorrer_printar_direita();
 #endif
