@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include"assalas.h"
+#include"asalas.h"
 
 
 void salas_percorrer_printar_tras(){

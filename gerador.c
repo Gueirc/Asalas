@@ -1,6 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include"assalas.h"
+#include"asalas.h"
 sala* sala_gerar_certos(sala *atual, int  const *codigo, int pos){
 // Gera a proxima sala certa de acordo com o codigo, chama-se novamente com a proxima sala e a proxima posicao do codigo. Retorna a ultima sala
 	if (codigo[pos] == ESQUERDA){
