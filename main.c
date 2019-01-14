@@ -4,8 +4,6 @@
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_ttf.h>
 
-#define S_LARGURA 640
-#define S_ALTURA 480
 
 int main(){
   // -> escolher entre os dois tipos de codigo
@@ -39,43 +37,100 @@ int main(){
   ultimaSala = sala_gerar_certos(raiz,codigo,0); // Gera as salas certas a serem seguidas a partir do codigo
 
   sala *atual = raiz;
-  /* ----------------- Inicializar SDL ------------------------ */
+
+  /* ----------------- Inicializar SDL  e SDLttf------------------------ */
   if (SDL_Init(SDL_INIT_VIDEO) != 0){
     fprintf(stderr, "Impossivel inicializar sdl2: %s \n", SDL_GetError());
     return EXIT_FAILURE;
   }
-
-
-  SDL_Window *window = SDL_CreateWindow("Asalas", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S_LARGURA, S_ALTURA, 0);
+  int S_LARGURA =  640;
+  int S_ALTURA =  480;
+  SDL_Window *window = SDL_CreateWindow("Asalas", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S_LARGURA, S_ALTURA, SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
   if (window == NULL){
     fprintf(stderr, "SDL_CreateWindow Erro: %s \n",SDL_GetError());
     return EXIT_FAILURE;
   }
-
-
   SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
   if (renderer == NULL){
     fprintf(stderr, "SDL_CreateRederer Erro: %s \n",SDL_GetError());
     return EXIT_FAILURE;
   }
+  if (TTF_Init() != 0){
+    fprintf(stderr, "Impossivel inicializar SDL_TTF (Fonte e texto): %s \n",TTF_GetError());
+    return EXIT_FAILURE;
+  }
+  TTF_Font* fonte = TTF_OpenFont("res/OpenSans-Regular.ttf",24); 
+  if (fonte == NULL){
+    fprintf(stderr, "Impossivel abrir OpenSans-Regular.ttf  : %s \n",TTF_GetError());
+    return EXIT_FAILURE;
+  }
+  SDL_Color branco = {255,255,255};
   SDL_Event evento;
+  SDL_Surface* surTexto;
+  SDL_Texture* texto;
+  SDL_Rect rectTexto; 
+  rectTexto.x = 0;             // Esses dois sao constantes em qualquer texto
+  rectTexto.h = 50; 
   int sair = 0; 
+  unsigned int printarTexto = 2; // Comeca em 2 so pra renderizar junto com o fullscreen
+  enum modos{ inicial, trancada, normal };
+  enum modos modoTexto = inicial; // O inicial eh usado somente uma vez
+  int mudouDeSala = 1;
+  SDL_GetWindowSize(window,&S_LARGURA,&S_ALTURA);
 
   printf("\n Voce se ve diante de tres portas, uma do lado da outra, estao um pouco longe, logo atras de voce tem uma porta trancada");
 
   while (!sair){
 
     /* -----Gera as salas adjacentes se nao existirem ---- */
-    if (atual->direita == 0) sala_gerar(&(atual)->direita,atual,1);
-    if (atual->esquerda == 0) sala_gerar(&(atual)->esquerda,atual,1);
-    if (atual->meio == 0) sala_gerar(&(atual)->meio,atual,1);
-    /* --------------------Perguntar sala------------------------------------ */
+    if (mudouDeSala){
+      mudouDeSala = 0;
+      if (atual->direita == 0) sala_gerar(&(atual)->direita,atual,1);
+      if (atual->esquerda == 0) sala_gerar(&(atual)->esquerda,atual,1);
+      if (atual->meio == 0) sala_gerar(&(atual)->meio,atual,1);
+    }
+    /* --------------------Printar texto------------------------------------ */
+    if (printarTexto){
+      printarTexto--;
+      SDL_FreeSurface(surTexto);
+      SDL_DestroyTexture(texto);
+      SDL_GetWindowSize(window,&S_LARGURA,&S_ALTURA);
+      rectTexto.y = S_ALTURA - 50;
+      switch(modoTexto){
+        case inicial:
+          surTexto = TTF_RenderText_Blended(fonte,"A sala fede velhice, a porta nas suas costas se encontra trancada",branco);
+          texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          rectTexto.w = S_LARGURA;
+          break;
+        case trancada:
+          surTexto = TTF_RenderText_Blended(fonte,"A porta se encontra trancada",branco);
+          texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          rectTexto.w = S_LARGURA/2;
+          break;
+        case normal:
+          surTexto = TTF_RenderText_Blended(fonte,"Entraste em uma sala aparentemente igual a anterior",branco);
+          texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          rectTexto.w = S_LARGURA/2;
+          break; 
+        default:
+          fprintf(stderr, "Erro logico no redimensionamento de texto \n");
+          return EXIT_FAILURE;
+      }
+    }
+    /* -------------------------------------------------------------------- */
 
     while (SDL_PollEvent(&evento)){
       switch(evento.type){
         case SDL_QUIT:
           sair = 1;
           break;
+        case SDL_WINDOWEVENT:
+          switch(evento.window.event){
+            case SDL_WINDOWEVENT_RESIZED:
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+              printarTexto = 1;
+              break;
+          }
       }
 
       /* Testando SDL
@@ -152,12 +207,18 @@ int main(){
       continue;
       Testando SDL*/
     }
-    SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
     SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
+    SDL_RenderCopy(renderer, texto, NULL, &rectTexto); 
     SDL_RenderPresent(renderer);
   }
+  TTF_CloseFont(fonte);
+  SDL_FreeSurface(surTexto);
+  SDL_DestroyTexture(texto);
+  SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
+
   return EXIT_SUCCESS;
 
 }
