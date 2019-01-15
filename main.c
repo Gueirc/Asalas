@@ -3,6 +3,7 @@
 #include"asalas.h"
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_ttf.h>
+#include<SDL2/SDL_image.h>
 
 
 int main(){
@@ -26,7 +27,7 @@ int main(){
   //	}
   /* ----------------------------------- */
 
-
+  // -> Inicializacoes do jogo
   sala *raiz;  // primeira sala 
   sala *ultimaSala; // Ultima sala do codigo, 
   sala *salaEscolhida;
@@ -66,25 +67,51 @@ int main(){
   }
   SDL_Color branco = {255,255,255};
   SDL_Event evento;
-  SDL_Surface* surTexto;
-  SDL_Texture* texto;
+  SDL_Surface* surTexto = NULL;
+  SDL_Texture* texto = NULL;
   SDL_Rect rectTexto; 
   rectTexto.x = 0;             // Esses dois sao constantes em qualquer texto
   rectTexto.h = 50; 
-  int sair = 0; 
-  unsigned int printarTexto = 2; // Comeca em 2 so pra renderizar junto com o fullscreen
-  enum modos{ inicial, trancada, normal };
-  enum modos modoTexto = inicial; // O inicial eh usado somente uma vez
-  int mudouDeSala = 1;
-  SDL_GetWindowSize(window,&S_LARGURA,&S_ALTURA);
 
-  printf("\n Voce se ve diante de tres portas, uma do lado da outra, estao um pouco longe, logo atras de voce tem uma porta trancada");
+  // -> Sprites
+  SDL_Surface* surBranca = SDL_CreateRGBSurface(0,100,100,8,0,0,0,0);
+  if (!surBranca){
+    fprintf(stderr, "Erro ao criar surface: %s \n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  SDL_Texture* tPorta =  SDL_CreateTextureFromSurface(renderer,surBranca);
+  SDL_Texture* tPlayer = SDL_CreateTextureFromSurface(renderer,surBranca);
+  SDL_FreeSurface(surBranca);
+  if (!tPorta){
+    fprintf(stderr, "Erro ao criar textura: %s \n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  if (!tPlayer){
+    fprintf(stderr,"Erro ao criar textura: %s \n",SDL_GetError());
+    return EXIT_FAILURE;
+  }
+  // Retangulo do jogador
+  SDL_Rect rectPlayer;
+  rectPlayer.w = 50;
+  rectPlayer.h = 50;
+  // Coloca ele no meio da tela (temporariariamente, tbm precisa faze isso funcionar quando redimensionar)
+  rectPlayer.x = (S_LARGURA - rectPlayer.w)/2;
+  rectPlayer.y = (S_ALTURA -rectPlayer.h)/2;
+  int mvCim = 0,mvDir = 0,mvEsq = 0,mvBaix = 0;  // Booleanas para mover
+  float xPos = rectPlayer.x, yPos = rectPlayer.y, xVel, yVel;
+  const int Velocidade = 5; // Velocidade (quantos pixels se move por frame)
+
+  unsigned int printarTexto = 2; // Comeca em 2 so pra renderizar junto com o fullscreen
+  int mudouDeSala = 1; // Positivo se tiver mudado de sala, incialmente fica em um pra gerar salas adjacentes
+  enum modos{ inicial, trancada, normal };
+  enum modos modoTexto = inicial; // O inicial eh usado somente uma vez, cada modo muda o texto exibido
+  int sair = 0; // Booleana pra sair do loop do jogo
 
   while (!sair){
 
     /* -----Gera as salas adjacentes se nao existirem ---- */
     if (mudouDeSala){
-      mudouDeSala = 0;
+      mudouDeSala--;
       if (atual->direita == 0) sala_gerar(&(atual)->direita,atual,1);
       if (atual->esquerda == 0) sala_gerar(&(atual)->esquerda,atual,1);
       if (atual->meio == 0) sala_gerar(&(atual)->meio,atual,1);
@@ -92,28 +119,30 @@ int main(){
     /* --------------------Printar texto------------------------------------ */
     if (printarTexto){
       printarTexto--;
-      SDL_FreeSurface(surTexto);
-      SDL_DestroyTexture(texto);
       SDL_GetWindowSize(window,&S_LARGURA,&S_ALTURA);
-      rectTexto.y = S_ALTURA - 50;
+      SDL_DestroyTexture(texto);
+      rectTexto.y = S_ALTURA - 50; // Eh o mesmo pros tres modos
       switch(modoTexto){
         case inicial:
           surTexto = TTF_RenderText_Blended(fonte,"A sala fede velhice, a porta nas suas costas se encontra trancada",branco);
           texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          SDL_FreeSurface(surTexto);
           rectTexto.w = S_LARGURA;
           break;
         case trancada:
           surTexto = TTF_RenderText_Blended(fonte,"A porta se encontra trancada",branco);
           texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          SDL_FreeSurface(surTexto);
           rectTexto.w = S_LARGURA/2;
           break;
         case normal:
           surTexto = TTF_RenderText_Blended(fonte,"Entraste em uma sala aparentemente igual a anterior",branco);
           texto = SDL_CreateTextureFromSurface(renderer, surTexto);
+          SDL_FreeSurface(surTexto);
           rectTexto.w = S_LARGURA/2;
           break; 
         default:
-          fprintf(stderr, "Erro logico no redimensionamento de texto \n");
+          fprintf(stderr, "Erro logico ao printar texto \n");
           return EXIT_FAILURE;
       }
     }
@@ -131,6 +160,47 @@ int main(){
               printarTexto = 1;
               break;
           }
+        case SDL_KEYDOWN:
+          switch(evento.key.keysym.scancode){
+            case SDL_SCANCODE_D:
+            case SDL_SCANCODE_RIGHT:
+              mvDir = 1;
+              break;
+            case SDL_SCANCODE_UP:
+            case SDL_SCANCODE_W:
+              mvCim = 1;
+              break;
+            case SDL_SCANCODE_DOWN:
+            case SDL_SCANCODE_S:
+              mvBaix = 1;
+              break;
+            case SDL_SCANCODE_LEFT:
+            case SDL_SCANCODE_A:
+              mvEsq = 1;
+              break;
+          }
+          break;
+        case SDL_KEYUP:
+          switch(evento.key.keysym.scancode){
+            case SDL_SCANCODE_D:
+            case SDL_SCANCODE_RIGHT:
+              mvDir = 0;
+              break;
+            case SDL_SCANCODE_UP:
+            case SDL_SCANCODE_W:
+              mvCim = 0;
+              break;
+            case SDL_SCANCODE_DOWN:
+            case SDL_SCANCODE_S:
+              mvBaix = 0;
+              break;
+            case SDL_SCANCODE_LEFT:
+            case SDL_SCANCODE_A:
+              mvEsq = 0;
+              break;
+
+          }
+          break;
       }
 
       /* Testando SDL
@@ -206,15 +276,34 @@ int main(){
       atual = salaEscolhida;
       continue;
       Testando SDL*/
-    }
+    } // Fin do handle event
+
+    // determinar velocidade do player
+    xVel = 0;
+    yVel = 0;
+    if (mvCim  && !mvBaix)yVel = -Velocidade;
+    if (mvBaix && !mvCim) yVel =  Velocidade;
+    if (mvDir  && !mvEsq) xVel =  Velocidade;
+    if (mvEsq  && !mvDir) xVel = -Velocidade;
+    // Atualizar posicoes
+    xPos += xVel;
+    yPos += yVel;
+    // Detectar colisoes
+
+    // Aplicar movimento
+    rectPlayer.y = (int) yPos;
+    rectPlayer.x = (int) xPos;
+
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
     SDL_RenderCopy(renderer, texto, NULL, &rectTexto); 
+    SDL_RenderCopy(renderer, tPlayer, NULL, &rectPlayer);
     SDL_RenderPresent(renderer);
   }
   TTF_CloseFont(fonte);
-  SDL_FreeSurface(surTexto);
   SDL_DestroyTexture(texto);
+  SDL_DestroyTexture(tPorta);
+  SDL_DestroyTexture(tPlayer);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();
