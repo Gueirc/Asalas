@@ -1,3 +1,4 @@
+[![Asalas.png](https://i.postimg.cc/BbF8td4d/Asalas.png)](https://postimg.cc/SYyQv1Xr)
 # Asalas
 Pequeno quebra cabeça lógico, em C, com uma simples interface gráfica em SDL2
 
